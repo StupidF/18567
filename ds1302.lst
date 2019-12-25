@@ -1,0 +1,228 @@
+C51 COMPILER V9.54   DS1302                                                                12/24/2019 06:46:52 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE DS1302
+OBJECT MODULE PLACED IN ds1302.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE ds1302\ds1302.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\ds1302) DEBUG OBJECTEX
+                    -TEND PRINT(.\ds1302.lst) OBJECT(ds1302.obj)
+
+line level    source
+
+   1          #include "ds1302.h"
+   2          
+   3          //DS1302引脚定义
+   4          sbit RST        =       P1^4;
+   5          sbit IO         =       P1^3;
+   6          sbit SCK        =       P1^2;
+   7          
+   8          
+   9          unsigned char dis_time_buf[16]={0};
+  10          
+  11          //DS1302地址定义
+  12          #define ds1302_sec_add                  0x80            //秒数据地址
+  13          #define ds1302_min_add                  0x82            //分数据地址
+  14          #define ds1302_hr_add                   0x84            //时数据地址
+  15          #define ds1302_date_add                 0x86            //日数据地址
+  16          #define ds1302_month_add                0x88            //月数据地址
+  17          #define ds1302_day_add                  0x8a            //星期数据地址
+  18          #define ds1302_year_add                 0x8c            //年数据地址
+  19          #define ds1302_control_add              0x8e            //控制数据地址
+  20          #define ds1302_charger_add              0x90                                     
+  21          #define ds1302_clkburst_add             0xbe
+  22          //初始化时间
+  23          uchar time_buf[8] = {0x20,0x10,0x06,0x15,0x07,0x47,0x55,0x06};//初始时间2010年6月1号23点59分55秒 星期二
+  24          
+  25          //DS1302初始化函数
+  26          void ds1302_init(void) 
+  27          {
+  28   1              RST=0;                  //RST脚置低
+  29   1              SCK=0;                  //SCK脚置低
+  30   1      }
+  31          //向DS1302写入一字节数据
+  32          void ds1302_write_byte(uchar addr, uchar d) 
+  33          {
+  34   1              uchar i;
+  35   1              RST=1;                                  //启动DS1302总线        
+  36   1              //写入目标地址：addr
+  37   1              addr = addr & 0xFE;   //最低位置零，寄存器0位为0时写，为1时读
+  38   1              for (i = 0; i < 8; i ++) {
+  39   2                      if (addr & 0x01) {
+  40   3                              IO=1;
+  41   3                              }
+  42   2                      else {
+  43   3                              IO=0;
+  44   3                              }
+  45   2                      SCK=1;      //产生时钟
+  46   2                      SCK=0;
+  47   2                      addr = addr >> 1;
+  48   2                      }       
+  49   1              //写入数据：d
+  50   1              for (i = 0; i < 8; i ++) {
+  51   2                      if (d & 0x01) {
+  52   3                              IO=1;
+  53   3                              }
+  54   2                      else {
+C51 COMPILER V9.54   DS1302                                                                12/24/2019 06:46:52 PAGE 2   
+
+  55   3                              IO=0;
+  56   3                              }
+  57   2                      SCK=1;    //产生时钟
+  58   2                      SCK=0;
+  59   2                      d = d >> 1;
+  60   2                      }
+  61   1              RST=0;          //停止DS1302总线
+  62   1      }
+  63          
+  64          //从DS1302读出一字节数据
+  65          uchar ds1302_read_byte(uchar addr) 
+  66          {
+  67   1      
+  68   1              uchar i,temp;   
+  69   1              RST=1;                                  //启动DS1302总线
+  70   1              //写入目标地址：addr
+  71   1              addr = addr | 0x01;    //最低位置高，寄存器0位为0时写，为1时读
+  72   1              for (i = 0; i < 8; i ++) {
+  73   2                      if (addr & 0x01) {
+  74   3                              IO=1;
+  75   3                              }
+  76   2                      else {
+  77   3                              IO=0;
+  78   3                              }
+  79   2                      SCK=1;
+  80   2                      SCK=0;
+  81   2                      addr = addr >> 1;
+  82   2                      }       
+  83   1              //输出数据：temp
+  84   1              for (i = 0; i < 8; i ++) {
+  85   2                      temp = temp >> 1;
+  86   2                      if (IO) {
+  87   3                              temp |= 0x80;
+  88   3                              }
+  89   2                      else {
+  90   3                              temp &= 0x7F;
+  91   3                              }
+  92   2                      SCK=1;
+  93   2                      SCK=0;
+  94   2                      }       
+  95   1              RST=0;                                  //停止DS1302总线
+  96   1              return temp;
+  97   1      }
+  98          //向DS302写入时钟数据
+  99          void ds1302_write_time(void) 
+ 100          {
+ 101   1              ds1302_write_byte(ds1302_control_add,0x00);                     //关闭写保护 
+ 102   1              ds1302_write_byte(ds1302_sec_add,0x80);                         //暂停时钟 
+ 103   1      //      ds1302_write_byte(ds1302_charger_add,0xa9);         //涓流充电 
+ 104   1              ds1302_write_byte(ds1302_year_add,time_buf[1]);         //年 
+ 105   1              ds1302_write_byte(ds1302_month_add,time_buf[2]);        //月 
+ 106   1              ds1302_write_byte(ds1302_date_add,time_buf[3]);         //日 
+ 107   1              ds1302_write_byte(ds1302_hr_add,time_buf[4]);           //时 
+ 108   1              ds1302_write_byte(ds1302_min_add,time_buf[5]);          //分
+ 109   1              ds1302_write_byte(ds1302_sec_add,time_buf[6]);          //秒
+ 110   1              ds1302_write_byte(ds1302_day_add,time_buf[7]);          //周 
+ 111   1              ds1302_write_byte(ds1302_control_add,0x80);                     //打开写保护     
+ 112   1      }
+ 113          //从DS302读出时钟数据
+ 114          void ds1302_read_time(void)  
+ 115          {
+ 116   1              time_buf[1]=ds1302_read_byte(ds1302_year_add);          //年 
+C51 COMPILER V9.54   DS1302                                                                12/24/2019 06:46:52 PAGE 3   
+
+ 117   1              time_buf[2]=ds1302_read_byte(ds1302_month_add);         //月 
+ 118   1              time_buf[3]=ds1302_read_byte(ds1302_date_add);          //日 
+ 119   1              time_buf[4]=ds1302_read_byte(ds1302_hr_add);            //时 
+ 120   1              time_buf[5]=ds1302_read_byte(ds1302_min_add);           //分 
+ 121   1              time_buf[6]=(ds1302_read_byte(ds1302_sec_add))&0x7f;//秒，屏蔽秒的第7位，避免超出59
+ 122   1              time_buf[7]=ds1302_read_byte(ds1302_day_add);           //周    
+ 123   1              
+ 124   1              dis_time_buf[0]=(time_buf[0]>>4); //年   
+ 125   1              dis_time_buf[1]=(time_buf[0]&0x0f);
+ 126   1      
+ 127   1              dis_time_buf[2]=(time_buf[1]>>4);   
+ 128   1              dis_time_buf[3]=(time_buf[1]&0x0f);
+ 129   1      
+ 130   1              dis_time_buf[4]=(time_buf[2]>>4); //月  
+ 131   1              dis_time_buf[5]=(time_buf[2]&0x0f);
+ 132   1      
+ 133   1              dis_time_buf[6]=(time_buf[3]>>4); //日   
+ 134   1              dis_time_buf[7]=(time_buf[3]&0x0f);
+ 135   1      
+ 136   1              dis_time_buf[14]=(time_buf[7]&0x07); //星期
+ 137   1              //第2行显示  
+ 138   1              dis_time_buf[8]=(time_buf[4]>>4); //时   
+ 139   1              dis_time_buf[9]=(time_buf[4]&0x0f);   
+ 140   1      
+ 141   1              dis_time_buf[10]=(time_buf[5]>>4); //分   
+ 142   1              dis_time_buf[11]=(time_buf[5]&0x0f);   
+ 143   1      
+ 144   1              dis_time_buf[12]=(time_buf[6]>>4); //秒   
+ 145   1              dis_time_buf[13]=(time_buf[6]&0x0f);
+ 146   1      }
+ 147          
+ 148          //定时器2初始化
+ 149          void Init_timer2(void)
+ 150          {
+ 151   1              TMOD &= 0x0F;           //设置定时器模式
+ 152   1              TL1 = 0x00;             //设置定时初值
+ 153   1              TH1 = 0xB8;             //设置定时初值
+ 154   1              TF1 = 0;                //清除TF1标志
+ 155   1              TR1 = 1;                //定时器1开始计时
+ 156   1      }
+ 157          
+ 158          
+ 159          //定时器中断函数
+ 160          void Timer2() interrupt 5         //定时器2是5号中断
+ 161          {
+ 162   1              static uchar t;
+ 163   1              TF2=0;
+ 164   1              t++;
+ 165   1              if(t==4)               //间隔200ms(50ms*4)读取一次时间
+ 166   1              {
+ 167   2                      t=0;
+ 168   2                      ds1302_read_time();  //定时读取时间     
+ 169   2                      dis_time_buf[0]=(time_buf[0]>>4); //年   
+ 170   2                      dis_time_buf[1]=(time_buf[0]&0x0f);
+ 171   2      
+ 172   2                      dis_time_buf[2]=(time_buf[1]>>4);   
+ 173   2                      dis_time_buf[3]=(time_buf[1]&0x0f);
+ 174   2      
+ 175   2                      dis_time_buf[4]=(time_buf[2]>>4); //月  
+ 176   2                      dis_time_buf[5]=(time_buf[2]&0x0f);
+ 177   2      
+ 178   2                      dis_time_buf[6]=(time_buf[3]>>4); //日   
+C51 COMPILER V9.54   DS1302                                                                12/24/2019 06:46:52 PAGE 4   
+
+ 179   2                      dis_time_buf[7]=(time_buf[3]&0x0f);
+ 180   2      
+ 181   2                      dis_time_buf[14]=(time_buf[7]&0x07); //星期
+ 182   2                      //第2行显示  
+ 183   2                      dis_time_buf[8]=(time_buf[4]>>4); //时   
+ 184   2                      dis_time_buf[9]=(time_buf[4]&0x0f);   
+ 185   2      
+ 186   2                      dis_time_buf[10]=(time_buf[5]>>4); //分   
+ 187   2                      dis_time_buf[11]=(time_buf[5]&0x0f);   
+ 188   2      
+ 189   2                      dis_time_buf[12]=(time_buf[6]>>4); //秒   
+ 190   2                      dis_time_buf[13]=(time_buf[6]&0x0f);
+ 191   2      
+ 192   2              }
+ 193   1      }
+ 194          
+ 195          
+ 196          
+ 197          
+ 198          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    490    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     25    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
