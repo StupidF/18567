@@ -324,7 +324,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>.\ds1302</IncludePath>
+              <IncludePath>.\ds1302;.\LCD1602</IncludePath>
             </VariousControls>
           </C51>
           <Ax51>
@@ -385,6 +385,11 @@
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\main.c</FilePath>
+            </File>
+            <File>
+              <FileName>lcd1602.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\LCD1602\lcd1602.c</FilePath>
             </File>
           </Files>
         </Group>

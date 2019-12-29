@@ -20,14 +20,14 @@ unsigned char dis_time_buf[16]={0};
 #define ds1302_charger_add		0x90 					 
 #define ds1302_clkburst_add		0xbe
 //初始化时间
-uchar time_buf[8] = {0x20,0x10,0x06,0x15,0x07,0x47,0x55,0x06};//初始时间2010年6月1号23点59分55秒 星期二
+uchar time_buf[8] = {0x20,0x19,0x12,0x20,0x19,0x19,0x55,0x07};//初始时间2010年6月1号23点59分55秒 星期二
 
-//DS1302初始化函数
-void ds1302_init(void) 
-{
-	RST=0;			//RST脚置低
-	SCK=0;			//SCK脚置低
-}
+////DS1302初始化函数
+//void ds1302_init(void) 
+//{
+//	RST=0;			//RST脚置低
+//	SCK=0;			//SCK脚置低
+//}
 //向DS1302写入一字节数据
 void ds1302_write_byte(uchar addr, uchar d) 
 {
@@ -100,7 +100,7 @@ void ds1302_write_time(void)
 {
 	ds1302_write_byte(ds1302_control_add,0x00);			//关闭写保护 
 	ds1302_write_byte(ds1302_sec_add,0x80);				//暂停时钟 
-//	ds1302_write_byte(ds1302_charger_add,0xa9);	    //涓流充电 
+	ds1302_write_byte(ds1302_charger_add,0xa9);	    //涓流充电 
 	ds1302_write_byte(ds1302_year_add,time_buf[1]);		//年 
 	ds1302_write_byte(ds1302_month_add,time_buf[2]);	//月 
 	ds1302_write_byte(ds1302_date_add,time_buf[3]);		//日 

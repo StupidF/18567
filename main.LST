@@ -1,547 +1,462 @@
-C51 COMPILER V9.54   MAIN                                                                  12/24/2019 07:20:24 PAGE 1   
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 1   
 
 
 C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
 OBJECT MODULE PLACED IN main.OBJ
-COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\ds1302) DEBUG OBJECTEXTEND
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\ds1302;.\LCD1602) DEBUG OBJECTE
+                    -XTEND
 
 line level    source
 
    1          #include <REG52.H>              //器件配置文件
    2          #include "ds1302.h"
-   3          #include <intrins.h>
-   4          #include <math.h> 
-   5          sfr P4 = 0XC0;
+   3          #include "lcd1602.h"
+   4          #include <intrins.h>
+   5          #include <math.h> 
    6          
-   7          #define Key_Data P2_0 //定义Keyboard引脚
-   8          #define Key_CLK  P3_2
-   9          
-  10          #define Busy    0x80 //用于检测LCM状态字中的Busy标识
-  11          //喂食标志
-  12          unsigned char WeiYuFlag = 0;
-  13          unsigned char WeiYuTimeFlag = 0;
-  14          //换水标志
-  15          unsigned char huanshuiFlag = 0;
-  16          
-  17          //1602液晶引脚
-  18          #define LCM_Data  P2
-  19          sbit LCM_RW = P0^6; //定义LCD引脚
-  20          sbit LCM_RS = P0^7;
-  21          sbit LCM_E  = P0^5;
-  22          
-  23          //控制输出信号
-  24          sbit K1 = P0^0;         //电磁阀1
-  25          sbit K2 = P0^1;         //电磁阀2
-  26          sbit K3 = P0^2;         //电磁阀3
-  27          sbit K4 = P0^3;         //电磁阀4
-  28          sbit K5 = P0^4;         //水泵
-  29          
-  30          //按键
-  31          sbit BT1 = P3^4;
-  32          sbit BT2 = P3^5;
-  33          sbit BT3 = P3^6;
-  34          
-  35          //超声波引脚
-  36          sbit  RX =  P1^0;
-  37          sbit  TX  = P1^1;
-  38          
-  39          //光电输入信号
-  40          sbit X01 = P1^5;
-  41          sbit X02 = P1^6;
-  42          sbit X03 = P1^7;
-  43          //LED 灯光
-  44          sbit LED = P3^7;
-  45          //蜂鸣器
-  46          sbit BEEP = P3^3;
-  47          //喂食
-  48          sbit WS = P3^5;
-  49          
-  50          //灯亮的时间
-  51          unsigned int  LEDBeginTime= 0;
-  52          
-  53          unsigned char Manual = 0;
-  54          
-  55          unsigned char month, day,hour,minite;
-C51 COMPILER V9.54   MAIN                                                                  12/24/2019 07:20:24 PAGE 2   
+   7          //喂食标志
+   8          unsigned char WeiYuFlag = 0;
+   9          unsigned char WeiYuTimeFlag = 0;
+  10          //换水标志
+  11          unsigned char huanshuiFlag = 0;
+  12          unsigned char alarm       = 0;
+  13          
+  14          
+  15          //控制输出信号
+  16          sbit K1 = P0^0;         //电磁阀1
+  17          sbit K2 = P0^1;         //电磁阀2
+  18          sbit K3 = P0^2;         //电磁阀3
+  19          sbit K4 = P0^3;         //电磁阀4
+  20          sbit K5 = P0^4;         //水泵
+  21          //蜂鸣器
+  22          sbit BEEP = P3^3;
+  23          //喂食
+  24          sbit WS = P3^2;
+  25          
+  26          //按键
+  27          sbit BT1 = P3^4;
+  28          sbit BT2 = P3^5;
+  29          sbit BT3 = P3^6;
+  30          //LED 灯光
+  31          sbit LED = P3^7;
+  32          
+  33          //超声波引脚
+  34          sbit  RX =  P1^0;
+  35          sbit  TX  = P1^1;
+  36          
+  37          //光电输入信号
+  38          sbit X01 = P1^5;
+  39          sbit X02 = P1^6;
+  40          sbit X03 = P1^7;
+  41          
+  42          
+  43          //灯亮的时间
+  44          unsigned int  LEDBeginTime= 0;
+  45          unsigned char LEDflag     = 0;
+  46          //手动标志
+  47          unsigned char Manual = 0;
+  48          
+  49          static unsigned char DisNum = 0; //显示用指针zz                           
+  50                 unsigned int  time=0;
+  51                     unsigned long S=0;
+  52                     unsigned long oldS=0;
+  53                     unsigned long oldST=0;
+  54                     bit      flag =0;
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 2   
 
-  56          unsigned char oldhour=0,oldminite=0;
-  57          unsigned char ReadDataLCM(void);
-  58          unsigned char ReadStatusLCM(void);
-  59          unsigned char code ASCII[15] =    {'0','1','2','3','4','5','6','7','8','9','.','-','M'};
-  60          
-  61          static unsigned char DisNum = 0; //显示用指针                             
-  62                 unsigned int  time=0;
-  63                     unsigned long S=0;
-  64                     unsigned long oldS=0;
-  65                     unsigned long oldST=0;
-  66                     bit      flag =0;
-  67                     unsigned char disbuff[4]        ={ 0,0,0,0,};
-  68          
-  69          extern unsigned char dis_time_buf[16];     
-  70                     //5ms延时
-  71          void Delay5Ms(void)
-  72          {
-  73   1              unsigned int TempCyc = 5552;
-  74   1              while(TempCyc--);
+  55                     unsigned char disbuff[4]        ={ 0,0,0,0,};
+  56          
+  57          extern unsigned char dis_time_buf[16];     
+  58                     //5ms延时
+  59          void Delay5Ms(void)
+  60          {
+  61   1              unsigned int TempCyc = 5552;
+  62   1              while(TempCyc--);
+  63   1      }
+  64          
+  65          //400ms延时
+  66          void Delay400Ms(void)
+  67          {
+  68   1              unsigned char TempCycA = 5;
+  69   1              unsigned int TempCycB;
+  70   1              while(TempCycA--)
+  71   1              {
+  72   2                      TempCycB=7269;
+  73   2                      while(TempCycB--);
+  74   2              };
   75   1      }
   76          
-  77          //400ms延时
-  78          void Delay400Ms(void)
+  77          /********************************************************/
+  78          void  StartModule()                      //启动模块
   79          {
-  80   1              unsigned char TempCycA = 5;
-  81   1              unsigned int TempCycB;
-  82   1              while(TempCycA--)
-  83   1              {
-  84   2                      TempCycB=7269;
-  85   2                      while(TempCycB--);
-  86   2              };
-  87   1      }
-  88          
-  89          
-  90          //写数据
-  91          void WriteDataLCM(unsigned char WDLCM) 
-  92          {
-  93   1              ReadStatusLCM(); //检测忙
-  94   1              LCM_Data = WDLCM;
-  95   1              LCM_RS = 1;
-  96   1              LCM_RW = 0;
-  97   1              LCM_E = 0; //若晶振速度太高可以在这后加小的延时
-  98   1              LCM_E = 0; //延时
-  99   1              LCM_E = 1;
- 100   1      }
- 101          
- 102          //写指令
- 103          void WriteCommandLCM(unsigned char WCLCM,BuysC) //BuysC为0时忽略忙检测
- 104          {
- 105   1              if (BuysC) ReadStatusLCM(); //根据需要检测忙
- 106   1              LCM_Data = WCLCM;
- 107   1              LCM_RS = 0;
- 108   1              LCM_RW = 0;     
- 109   1              LCM_E = 0;
- 110   1              LCM_E = 0;
- 111   1              LCM_E = 1;      
- 112   1      }
- 113          
- 114          //读数据
- 115          unsigned char ReadDataLCM(void)
- 116          {
- 117   1              LCM_RS = 1; 
-C51 COMPILER V9.54   MAIN                                                                  12/24/2019 07:20:24 PAGE 3   
+  80   1                TX=1;                                      //启动一次模块
+  81   1                _nop_();_nop_();_nop_(); _nop_(); 
+  82   1                _nop_(); 
+  83   1                _nop_(); 
+  84   1                _nop_(); 
+  85   1                _nop_(); 
+  86   1                _nop_(); 
+  87   1                _nop_(); 
+  88   1                _nop_(); 
+  89   1                _nop_(); 
+  90   1                _nop_(); 
+  91   1                _nop_(); 
+  92   1                _nop_(); 
+  93   1                _nop_(); 
+  94   1                _nop_();
+  95   1                _nop_(); 
+  96   1                _nop_(); 
+  97   1                _nop_(); 
+  98   1                _nop_();
+  99   1                _nop_(); 
+ 100   1                _nop_(); 
+ 101   1                _nop_(); 
+ 102   1                _nop_(); 
+ 103   1                _nop_(); 
+ 104   1                _nop_(); 
+ 105   1                _nop_(); 
+ 106   1                _nop_(); 
+ 107   1                _nop_(); 
+ 108   1                _nop_(); 
+ 109   1                _nop_(); 
+ 110   1                _nop_(); 
+ 111   1                _nop_(); 
+ 112   1                _nop_(); 
+ 113   1                _nop_(); 
+ 114   1                _nop_(); 
+ 115   1                _nop_();
+ 116   1                _nop_(); 
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 3   
 
- 118   1              LCM_RW = 1;
- 119   1              LCM_E = 0;
- 120   1              LCM_E = 0;
- 121   1              LCM_E = 1;
- 122   1              return(LCM_Data);
- 123   1      }
- 124          
- 125          //读状态
- 126          unsigned char ReadStatusLCM(void)
- 127          {
- 128   1              LCM_Data = 0xFF; 
- 129   1              LCM_RS = 0;
- 130   1              LCM_RW = 1;
- 131   1              LCM_E = 0;
- 132   1              LCM_E = 0;
- 133   1              LCM_E = 1;
- 134   1              while (LCM_Data & Busy); //检测忙信号
- 135   1              return(LCM_Data);
- 136   1      }
- 137          
- 138          void LCMInit(void) //LCM初始化
- 139          {
- 140   1              LCM_Data = 0;
- 141   1              WriteCommandLCM(0x38,0); //三次显示模式设置，不检测忙信号
- 142   1              Delay5Ms(); 
- 143   1              WriteCommandLCM(0x38,0);
- 144   1              Delay5Ms(); 
- 145   1              WriteCommandLCM(0x38,0);
- 146   1              Delay5Ms(); 
- 147   1      
- 148   1              WriteCommandLCM(0x38,1); //显示模式设置,开始要求每次检测忙信号
- 149   1              WriteCommandLCM(0x0c,1); //关闭显示
- 150   1              WriteCommandLCM(0x01,1); //显示清屏
- 151   1              WriteCommandLCM(0x06,0); // 显示光标移动设置
- 152   1      }
- 153          
- 154          //按指定位置显示一个字符
- 155          void DisplayOneChar(unsigned char X, unsigned char Y, unsigned char DData)
- 156          {
- 157   1              Y &= 0x1;
- 158   1              X &= 0xF; //限制X不能大于15，Y不能大于1
- 159   1              if (Y) X |= 0x40; //当要显示第二行时地址码+0x40;
- 160   1              X |= 0x80; //算出指令码
- 161   1              WriteCommandLCM(X, 1); //发命令字
- 162   1              WriteDataLCM(DData); //发数据
- 163   1      }
- 164          
- 165          //按指定位置显示一串字符
- 166          void DisplayListChar(unsigned char X, unsigned char Y, unsigned char code *DData)
- 167          {
- 168   1              unsigned char ListLength;
- 169   1      
- 170   1              ListLength = 0;
- 171   1              Y &= 0x1;
- 172   1              X &= 0xF; //限制X不能大于15，Y不能大于1
- 173   1              while (DData[ListLength]>0x19) //若到达字串尾则退出
- 174   1              {
- 175   2                      if (X <= 0xF) //X坐标应小于0xF
- 176   2                      {
- 177   3                              DisplayOneChar(X, Y, DData[ListLength]); //显示单个字符
- 178   3                              ListLength++;
- 179   3                              X++;
-C51 COMPILER V9.54   MAIN                                                                  12/24/2019 07:20:24 PAGE 4   
+ 117   1                _nop_(); 
+ 118   1                _nop_(); 
+ 119   1                _nop_();
+ 120   1                TX=0;
+ 121   1        }
+ 122          /********************************************************/ 
+ 123          void delayms(unsigned int ms)
+ 124          {
+ 125   1              unsigned char i=100,j;
+ 126   1              for(;ms;ms--)
+ 127   1              {
+ 128   2                      while(--i)
+ 129   2                      {
+ 130   3                              j=10;
+ 131   3                              while(--j);
+ 132   3                      }
+ 133   2              }
+ 134   1      }
+ 135          
+ 136          //定时器初始化
+ 137          void TimerInit(void)
+ 138          {
+ 139   1              TMOD=0x01;                 //设T0为方式1，GATE=1；
+ 140   1              TH0=0;
+ 141   1              TL0=0;          
+ 142   1              ET0=1;             //允许T0中断
+ 143   1              EA=1;                      //开启总中断 
+ 144   1      }
+ 145          
+ 146          
+ 147          /********************************************************/
+ 148          void Conut(void)
+ 149          {
+ 150   1              StartModule();          //启动测量
+ 151   1              while(!RX);                     //当RX为零时等待
+ 152   1              TR0 = 1;                            //开启计数
+ 153   1              while(RX);                      //当RX为1计数并等待
+ 154   1              TR0 = 0;                                //关闭计数
+ 155   1              
+ 156   1              time=TH0*256+TL0;
+ 157   1              TH0=0;
+ 158   1              TL0=0;
+ 159   1      
+ 160   1              S=(time*1.7)/100;     //算出来是CM
+ 161   1              if((S>=700) || flag == 1) //超出测量范围显示“-”
+ 162   1              {        
+ 163   2                      flag=0;
+ 164   2      
+ 165   2                      DisplayOneChar(0, 1, '-');
+ 166   2                      DisplayOneChar(1, 1, '-');
+ 167   2                      DisplayOneChar(2, 1, '-');
+ 168   2              }
+ 169   1              else
+ 170   1              {
+ 171   2                      DisplayOneChar(0, 1, S%1000/100+0x30);
+ 172   2                      DisplayOneChar(1, 1, S%1000%100/10+0x30);
+ 173   2                      DisplayOneChar(2, 1, S%1000%10 %10+0x30);
+ 174   2              }
+ 175   1      }
+ 176          
+ 177          unsigned char month, day,hour,minite,sec;
+ 178          unsigned char day_old,hour_old,minite_old,sec_old;
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 4   
 
- 180   3                      }
- 181   2              }
- 182   1      }
- 183          
- 184          
- 185          /********************************************************/
- 186          void Conut(void)
- 187          {
- 188   1              time=TH0*256+TL0;
- 189   1              TH0=0;
- 190   1              TL0=0;
- 191   1      
- 192   1              S=(time*1.7)/100;     //算出来是CM
- 193   1              if((S>=700)||flag==1) //超出测量范围显示“-”
- 194   1              {        
- 195   2                      flag=0;
- 196   2      
- 197   2                      DisplayOneChar(0, 1, ASCII[11]);
- 198   2                      DisplayOneChar(1, 1, ASCII[11]);
- 199   2                      DisplayOneChar(2, 1, ASCII[11]);
- 200   2              }
- 201   1              else
- 202   1              {
- 203   2                      disbuff[0]=S%1000/100;
- 204   2                      disbuff[1]=S%1000%100/10;
- 205   2                      disbuff[2]=S%1000%10 %10;
- 206   2                      DisplayOneChar(0, 1, ASCII[disbuff[0]]);
- 207   2                      DisplayOneChar(1, 1, ASCII[disbuff[1]]);
- 208   2                      DisplayOneChar(2, 1, ASCII[disbuff[2]]);
- 209   2              }
- 210   1      }
- 211          
- 212          /********************************************************/
- 213          void  StartModule()                      //启动模块
- 214          {
- 215   1                TX=1;                                      //启动一次模块
- 216   1                _nop_();_nop_();_nop_(); _nop_(); 
- 217   1                _nop_(); 
- 218   1                _nop_(); 
- 219   1                _nop_(); 
- 220   1                _nop_(); 
- 221   1                _nop_(); 
- 222   1                _nop_(); 
- 223   1                _nop_(); 
- 224   1                _nop_(); 
- 225   1                _nop_(); 
- 226   1                _nop_(); 
- 227   1                _nop_(); 
- 228   1                _nop_(); 
- 229   1                _nop_();
- 230   1                _nop_(); 
- 231   1                _nop_(); 
- 232   1                _nop_(); 
- 233   1                _nop_();
- 234   1                _nop_(); 
- 235   1                _nop_(); 
- 236   1                _nop_(); 
- 237   1                _nop_(); 
- 238   1                _nop_(); 
- 239   1                _nop_(); 
- 240   1                _nop_(); 
- 241   1                _nop_(); 
-C51 COMPILER V9.54   MAIN                                                                  12/24/2019 07:20:24 PAGE 5   
+ 179          unsigned int  months, days,hours,minites,secs;
+ 180          unsigned char oldhour=0,oldminite=0;
+ 181          
+ 182          //显示时间
+ 183          void displayTimes()
+ 184          {
+ 185   1              ds1302_read_time();     //读取时间
+ 186   1              
+ 187   1              month  = dis_time_buf[4 ]*10 + dis_time_buf[5 ];
+ 188   1              day    = dis_time_buf[6 ]*10 + dis_time_buf[7 ];
+ 189   1              hour   = dis_time_buf[8 ]*10 + dis_time_buf[9 ];
+ 190   1              minite = dis_time_buf[10]*10 + dis_time_buf[11];
+ 191   1              sec    = dis_time_buf[12]*10 + dis_time_buf[13];
+ 192   1              
+ 193   1              DisplayOneChar(1 , 0, month%100/10 +'0');
+ 194   1              DisplayOneChar(2 , 0, month%10     +'0');//月份
+ 195   1              DisplayOneChar(3 , 0, '-');
+ 196   1              DisplayOneChar(4 , 0, day%100/10   +'0');
+ 197   1              DisplayOneChar(5 , 0, day%10       +'0');//日
+ 198   1              
+ 199   1              DisplayOneChar(7 , 0, hour%100/10  +'0');
+ 200   1              DisplayOneChar(8 , 0, hour%10      +'0');//时
+ 201   1              DisplayOneChar(9 , 0, ':');
+ 202   1              DisplayOneChar(10, 0, minite%100/10+'0');
+ 203   1              DisplayOneChar(11, 0, minite%10+'0');//分
+ 204   1              DisplayOneChar(12, 0, ':');
+ 205   1              DisplayOneChar(13, 0, sec%100/10+'0');
+ 206   1              DisplayOneChar(14, 0, sec%10+'0');//秒
+ 207   1              
+ 208   1      }
+ 209          //喂食动作
+ 210          void Act_WS(void)
+ 211          {
+ 212   1              WS = 0;
+ 213   1              Delay400Ms(); 
+ 214   1              Delay400Ms();
+ 215   1              WS = 1;
+ 216   1      }
+ 217          
+ 218          void Sys_Init()
+ 219          {
+ 220   1              Delay400Ms();   //启动等待，等LCM讲入工作状态
+ 221   1              LCMInit();              //LCM初始化
+ 222   1              Delay400Ms();   //延时
+ 223   1              TimerInit();    //定时器初始化
+ 224   1              Init_timer2();
+ 225   1              ds1302_write_time(); //写入初始值
+ 226   1              K1 = 1;
+ 227   1              K2 = 1;
+ 228   1              K3 = 1;
+ 229   1              K4 = 1;
+ 230   1              K5 = 1;
+ 231   1              LED = 1;
+ 232   1              BEEP = 0;
+ 233   1              Conut();
+ 234   1              oldST = S;
+ 235   1      }
+ 236          /*********************************************************/
+ 237          void main(void)
+ 238          {
+ 239   1              unsigned char Step=0;
+ 240   1              unsigned int  Timetick=0;
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 5   
 
- 242   1                _nop_(); 
- 243   1                _nop_(); 
- 244   1                _nop_(); 
- 245   1                _nop_(); 
- 246   1                _nop_(); 
- 247   1                _nop_(); 
- 248   1                _nop_(); 
- 249   1                _nop_(); 
- 250   1                _nop_();
- 251   1                _nop_(); 
- 252   1                _nop_(); 
- 253   1                _nop_(); 
- 254   1                _nop_();
- 255   1                TX=0;
- 256   1        }
- 257          /********************************************************/ 
- 258          void delayms(unsigned int ms)
- 259          {
- 260   1              unsigned char i=100,j;
- 261   1              for(;ms;ms--)
- 262   1              {
- 263   2                      while(--i)
+ 241   1              unsigned int  WTimetick=0;
+ 242   1              Sys_Init();
+ 243   1      
+ 244   1              while(1)
+ 245   1              {
+ 246   2                      displayTimes();         //显示时间
+ 247   2                      
+ 248   2                      if(sec_old != sec)//一秒检测一次液位
+ 249   2                      {
+ 250   3                              LEDBeginTime++; //灯光计时
+ 251   3                              secs++;
+ 252   3                              Conut();                        //测量液位
+ 253   3                      }
+ 254   2                      sec_old = sec;
+ 255   2                      if(abs( S - oldST )>2)  //报警
+ 256   2                      {
+ 257   3                              if(S<oldST)
+ 258   3                              {
+ 259   4                                      alarm = 1;
+ 260   4                                      huanshuiFlag = 1;
+ 261   4                              }
+ 262   3                      }
+ 263   2                      if(alarm == 1)
  264   2                      {
- 265   3                              j=10;
- 266   3                              while(--j);
- 267   3                      }
- 268   2              }
- 269   1      }
- 270          
- 271          //定时器初始化
- 272          void TimerInit(void)
- 273          {
- 274   1              TMOD=0x01;                 //设T0为方式1，GATE=1；
- 275   1              TH0=0;
- 276   1              TL0=0;          
- 277   1              ET0=1;             //允许T0中断
- 278   1              EA=1;                      //开启总中断 
- 279   1      }
- 280          
- 281          
- 282          void displayTimes()
- 283          {
- 284   1              ds1302_read_time();     //读取时间
- 285   1              month =  dis_time_buf[4]*10+dis_time_buf[5];
- 286   1              day = dis_time_buf[6]*10+dis_time_buf[7];
- 287   1              hour = dis_time_buf[8]*10+dis_time_buf[9];
- 288   1              minite = dis_time_buf[10]*10+dis_time_buf[11];
- 289   1              
- 290   1              DisplayOneChar(1, 0, month%100/10+'0');
- 291   1              DisplayOneChar(2, 0, month%10+'0');//时
- 292   1              
- 293   1              DisplayOneChar(4, 0, day%100/10+'0');
- 294   1              DisplayOneChar(5, 0, day%10+'0');//时
- 295   1              
- 296   1              DisplayOneChar(7, 0, hour%100/10+'0');
- 297   1              DisplayOneChar(8, 0, hour%10+'0');//分
- 298   1              DisplayOneChar(9, 0, ':');
- 299   1              DisplayOneChar(10, 0, minite%100/10+'0');
- 300   1              DisplayOneChar(11, 0, minite%10+'0');//分
- 301   1              DisplayOneChar(12, 0, ':');
- 302   1              DisplayOneChar(13, 0, dis_time_buf[12]+'0');
- 303   1              DisplayOneChar(14, 0, dis_time_buf[13]+'0');//秒
-C51 COMPILER V9.54   MAIN                                                                  12/24/2019 07:20:24 PAGE 6   
+ 265   3                              BEEP = 1;
+ 266   3                              K1 = 1;
+ 267   3                              K2 = 1;
+ 268   3                              K3 = 1;
+ 269   3                              K4 = 1;
+ 270   3                              K5 = 1;
+ 271   3                              Step = 0;
+ 272   3                      }
+ 273   2                      DisplayOneChar(15, 1, '0'+alarm);       
+ 274   2                      oldST = S;
+ 275   2                      
+ 276   2                      if((hour >= 6 && hour <= 8)|| (hour >= 18 && hour <= 22))                       //6-8点   18点到22点 
+ 277   2                      {
+ 278   3                              if(LED == 1 && LEDflag ==0)
+ 279   3                              {
+ 280   4                                      if( X01 == 0 || X02 == 0 || X03 == 0)           //有信号亮灯
+ 281   4                                      {
+ 282   5                                              LED = 0;        //开灯
+ 283   5                                              LEDBeginTime = 0;
+ 284   5                                      }
+ 285   4                              }
+ 286   3                              else 
+ 287   3                              {
+ 288   4                                      if(BT1 == 0)    //手动关灯
+ 289   4                                      {       
+ 290   5                                              delayms(1);
+ 291   5                                              if(BT1== 0)
+ 292   5                                              {
+ 293   6                                                      while( !BT1 );
+ 294   6                                                      DisplayOneChar(13, 1, '1');     
+ 295   6                                                      LEDflag = 1;
+ 296   6                                                      LEDBeginTime = 7200;
+ 297   6                                              }
+ 298   5                                      }
+ 299   4                                      if(LEDBeginTime > 10)//7200秒  自动关灯
+ 300   4                                      {
+ 301   5                                              LED = 1;//关灯
+ 302   5                                              LEDBeginTime = 0;//清除计时
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 6   
 
- 304   1              
- 305   1      }
- 306          /*********************************************************/
- 307          void main(void)
- 308          {
- 309   1              unsigned char TempCyc;
- 310   1              unsigned char Step=0;
- 311   1              unsigned int  Timetick=0;
- 312   1              unsigned int  WTimetick=0;
- 313   1              Delay400Ms();   //启动等待，等LCM讲入工作状态
- 314   1              LCMInit();              //LCM初始化
- 315   1              Delay5Ms();     //延时片刻(可不要)
- 316   1              ReadDataLCM();  //测试用句无意义
- 317   1              for (TempCyc=0; TempCyc<10; TempCyc++)
- 318   1                      Delay400Ms();   //延时
- 319   1              TimerInit();    //定时器初始化
- 320   1              Init_timer2();
- 321   1              ds1302_write_time(); //写入初始值
- 322   1              K1 = 1;
- 323   1              K2 = 1;
- 324   1              K3 = 1;
- 325   1              K4 = 1;
- 326   1              K5 = 1;
- 327   1              LED = 1;
- 328   1              BEEP = 1;
- 329   1              
- 330   1              StartModule();          //启动测量
- 331   1              while(!RX);                     //当RX为零时等待
- 332   1              TR0=1;                      //开启计数
- 333   1              while(RX);                      //当RX为1计数并等待
- 334   1              TR0=0;                          //关闭计数
- 335   1              Conut();                        //计算
- 336   1              oldST = S;
- 337   1              
- 338   1              while(1)
- 339   1              {
- 340   2                      displayTimes();         //显示时间
- 341   2                      //测量液位
- 342   2                      StartModule();          //启动测量
- 343   2                      while(!RX);                     //当RX为零时等待
- 344   2                      TR0=1;                      //开启计数
- 345   2                      while(RX);                      //当RX为1计数并等待
- 346   2                      TR0=0;                          //关闭计数
- 347   2                      Conut();                        //计算
- 348   2                      if(abs(S-oldST)>50)
- 349   2                      {
- 350   3                      //      huanshuiFlag = 1;
- 351   3                      //      BEEP = 0;
- 352   3                      //      LED = 0;
- 353   3                              
- 354   3                      }
- 355   2                      oldST = S;
- 356   2                      
- 357   2                      if((hour == 6|| hour == 7 || hour == 18 || hour == 19)&& LED == 1)              //亮灯
- 358   2                      {
- 359   3                              if(X01 == 0)
- 360   3                              {
- 361   4                                      LED = 0;        //开灯
- 362   4                                      LEDBeginTime=0;
- 363   4                              }
- 364   3                              if(X02 == 0)
- 365   3                              {
-C51 COMPILER V9.54   MAIN                                                                  12/24/2019 07:20:24 PAGE 7   
+ 303   5                                      }
+ 304   4                              }
+ 305   3                      }
+ 306   2                      else 
+ 307   2                      {
+ 308   3                              LEDflag = 0;
+ 309   3                              LED = 1;
+ 310   3                              LEDBeginTime = 0;
+ 311   3                      }
+ 312   2                      if(day %2 ==0 && hour == 19 && WeiYuFlag == 0 ) //getian 晚上7点喂食
+ 313   2                      {
+ 314   3                              Act_WS();
+ 315   3                              WeiYuFlag = 1;
+ 316   3                      }
+ 317   2                      if(hour != 19)
+ 318   2                      {
+ 319   3                              WeiYuFlag = 0;
+ 320   3                      }
+ 321   2                      if(BT2 == 0)    //手动喂食
+ 322   2                      {
+ 323   3                              delayms(1);
+ 324   3                              if(BT2 == 0)
+ 325   3                              {
+ 326   4                                      while(!BT2);
+ 327   4                                      DisplayOneChar(13, 1, '2');     
+ 328   4                                      Act_WS();
+ 329   4                              }
+ 330   3                      }
+ 331   2                      if(BT3 == 0)//手动换水
+ 332   2                      {
+ 333   3                              delayms(1);                     
+ 334   3      
+ 335   3                              if(BT3 == 0)
+ 336   3                              {
+ 337   4                                      while(!BT3);
+ 338   4                                      DisplayOneChar(13, 1, '3');     
+ 339   4                                      Manual=1;
+ 340   4                              }
+ 341   3                      }
+ 342   2                      DisplayOneChar(10, 1, Step+'0');        //显示当前步骤
+ 343   2                              
+ 344   2                      DisplayOneChar(5, 1, oldS%1000/100+0x30);
+ 345   2                      DisplayOneChar(6, 1, oldS%1000%100/10+0x30);
+ 346   2                      DisplayOneChar(7, 1, oldS%1000%10 %10+0x30);
+ 347   2                      if(((day==15 || day==30)&& huanshuiFlag==0 && LED == 0 && alarm == 0) || Manual==1)     //每月4日 20日在亮灯
+             -情况下换水
+ 348   2                      {
+ 349   3                              if(Step == 0)
+ 350   3                              {
+ 351   4                                      Timetick = 0;
+ 352   4                                      Step = 1;
+ 353   4                              }
+ 354   3                              else if(Step == 1)
+ 355   3                              {
+ 356   4                                      Timetick++;
+ 357   4                                      BEEP = 1;//蜂鸣器叫
+ 358   4                                      
+ 359   4                                      if(Timetick > 2)
+ 360   4                                      {
+ 361   5                                              K5 = 1;//关闭循环水泵
+ 362   5                                              K1 = 0;
+ 363   5                                              K2 = 0; //排水阀门开
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 7   
 
- 366   4                                      LED = 0;        //开灯
- 367   4                                      LEDBeginTime=0;
- 368   4                              }
- 369   3                              if(X03 == 0)
- 370   3                              {
- 371   4                                      LED = 0;        //开灯
- 372   4                                      LEDBeginTime=0;
- 373   4                              }
- 374   3                              
- 375   3      //                      if(X01 == 1 || X02 == 0 || X03 == 0)    //灯亮
- 376   3      //                      {
- 377   3      //                              LED = 0;        //开灯
- 378   3      //                              LEDBeginTime=0;
- 379   3      //                      }
- 380   3                      }
- 381   2                      if(LED == 0)
- 382   2                      {
- 383   3                              if(BT1 == 0)
- 384   3                              {
- 385   4                                      delayms(1);
- 386   4                                      if(BT1== 0)
- 387   4                                      {
- 388   5                                              while(!BT1);
- 389   5                                              LEDBeginTime=1*10;
- 390   5                                      }
- 391   4                              }
- 392   3                              LEDBeginTime++;
- 393   3                              if(LEDBeginTime>(1*10*20))
+ 364   5                                              oldS = S;
+ 365   5                                              oldS = oldS/3*2;
+ 366   5                                              Timetick = 0;
+ 367   5                                              BEEP = 0;
+ 368   5                                              Step = 2;
+ 369   5                                      }
+ 370   4                              }
+ 371   3                              else if(Step == 2)
+ 372   3                              {
+ 373   4                                      if(S < oldS)    //水位降低三分之一
+ 374   4                                      {
+ 375   5                                              K1 = 1;
+ 376   5                                              K2 = 1;
+ 377   5                                              Timetick = 0;
+ 378   5                                              Step = 3;
+ 379   5                                      }
+ 380   4                              }
+ 381   3                              else if(Step == 3)
+ 382   3                              {
+ 383   4                                      K3 = 0;
+ 384   4                                      K4 = 0;
+ 385   4                                      if(S > 30)
+ 386   4                                      {
+ 387   5                                              K3 = 1;
+ 388   5                                              K4 = 1;
+ 389   5                                              Timetick = 0;
+ 390   5                                              Step = 4;
+ 391   5                                      }
+ 392   4                              }
+ 393   3                              else if(Step == 4)
  394   3                              {
- 395   4                                      LED = 1;//关灯
- 396   4                                      LEDBeginTime = 0;//清除计时
- 397   4                              }
- 398   3                      }
- 399   2                      if(hour == 19 && WeiYuFlag == 0 )       //隔天晚上7点喂食
- 400   2                      {
- 401   3                              WeiYuTimeFlag = ~WeiYuTimeFlag; //隔天喂一次
- 402   3                              if(WeiYuTimeFlag)
- 403   3                              {
- 404   4                                      WS = 0; //开始喂食
- 405   4                                      WTimetick++;
- 406   4                                      if(WTimetick>1*10*20)
- 407   4                                      {
- 408   5                                              WS = 1;
- 409   5                                      }
- 410   4                                      WeiYuFlag = 1;
- 411   4                              }
+ 395   4                                      Timetick++;
+ 396   4                                      K5   = 0;
+ 397   4                                      BEEP = 1;
+ 398   4                                      if(Timetick>5)
+ 399   4                                      {
+ 400   5                                              Timetick = 0;
+ 401   5                                              BEEP = 0;
+ 402   5                                              Step = 0;
+ 403   5                                              Manual = 0;
+ 404   5                                              huanshuiFlag = 1;
+ 405   5                                      }
+ 406   4                              }
+ 407   3                      }
+ 408   2                      if(day!=15 && day!=30)
+ 409   2                      {
+ 410   3                              
+ 411   3                              huanshuiFlag = 0;
  412   3                      }
- 413   2                      if(hour != 19)
- 414   2                      {
- 415   3                              WeiYuFlag = 0;
- 416   3                      }
- 417   2                      if(BT2 == 0)
- 418   2                      {
- 419   3                              delayms(1);
- 420   3                              if(BT2== 0)
- 421   3                              {
- 422   4                                      while(!BT2);
- 423   4                                      Manual=1;
- 424   4                              }
- 425   3                      }
- 426   2                      DisplayOneChar(10, 1, Step+'0');        //显示当前步骤
- 427   2                              
-C51 COMPILER V9.54   MAIN                                                                  12/24/2019 07:20:24 PAGE 8   
+ 413   2                      if(alarm == 0 && Step == 0)
+ 414   2                              K5 = 0;
+ 415   2              
+ 416   2                      delayms(100);           //80MS
+ 417   2              }
+ 418   1      }
+ 419          
+ 420          /********************************************************/
+ 421          void zd0() interrupt 1           //T0中断用来计数器溢出,超过测距范围
+ 422          {
+ 423   1              flag=1;                                                  //中断溢出标志
+ 424   1      }
+ 425          
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 8   
 
- 428   2                      disbuff[0]=oldS%1000/100;
- 429   2                      disbuff[1]=oldS%1000%100/10;
- 430   2                      disbuff[2]=oldS%1000%10 %10;
- 431   2                      DisplayOneChar(5, 1, ASCII[disbuff[0]]);
- 432   2                      DisplayOneChar(6, 1, ASCII[disbuff[1]]);
- 433   2                      DisplayOneChar(7, 1, ASCII[disbuff[2]]);
- 434   2                      if(day==4 && huanshuiFlag==0 || Manual==1)      //每月十五日换水
- 435   2                      {
- 436   3                              
- 437   3                              if(Step == 0)
- 438   3                              {
- 439   4                                      Timetick = 0;
- 440   4                                      Step = 1;
- 441   4                              }
- 442   3                              else if(Step == 1)
- 443   3                              {
- 444   4                                      Timetick++;
- 445   4                                      BEEP = 0;//蜂鸣器叫
- 446   4                                      
- 447   4                                      if(Timetick>2)
- 448   4                                      {
- 449   5                                              K5 = 1;//关闭循环水泵
- 450   5                                              K1=0;K2=0;      //排水阀门开
- 451   5                                              oldS = S;
- 452   5                                              Timetick = 0;
- 453   5                                              BEEP = 1;
- 454   5                                              Step = 2;
- 455   5                                      }
- 456   4                              }
- 457   3                              else if(Step == 2)
- 458   3                              {
- 459   4                                      if(S<300)//水位降低三分之一
- 460   4                                      {
- 461   5                                              K1 = 1;
- 462   5                                              K2 = 1;
- 463   5                                              Timetick = 0;
- 464   5                                              Step = 3;
- 465   5                                      }
- 466   4                              }
- 467   3                              else if(Step == 3)
- 468   3                              {
- 469   4                                      K3 = 0;
- 470   4                                      K4 = 0;
- 471   4                                      if(S>60)
- 472   4                                      {
- 473   5                                              K3 = 1;
- 474   5                                              K4 = 1;
- 475   5                                              Timetick = 0;
- 476   5                                              Step = 4;
- 477   5                                      }
- 478   4                              }
- 479   3                              else if(Step == 4)
- 480   3                              {
- 481   4                                      Timetick++;
- 482   4                                      K5=0;
- 483   4                                      BEEP = 0;
- 484   4                                      if(Timetick>5)
- 485   4                                      {
- 486   5                                              Timetick=0;
- 487   5                                              BEEP = 1;
- 488   5                                              Step = 0;
- 489   5                                              Manual = 0;
-C51 COMPILER V9.54   MAIN                                                                  12/24/2019 07:20:24 PAGE 9   
-
- 490   5                                              huanshuiFlag = 1;
- 491   5                                      }
- 492   4                                      
- 493   4                              }
- 494   3                              
- 495   3                      }
- 496   2                      if(day!=4 && Manual == 0)
- 497   2                      {
- 498   3                              K5 = 0;
- 499   3                              huanshuiFlag = 0;
- 500   3                      }
- 501   2                      delayms(100);           //80MS
- 502   2              }
- 503   1      }
- 504          
- 505          /********************************************************/
- 506          void zd0() interrupt 1           //T0中断用来计数器溢出,超过测距范围
- 507          {
- 508   1              flag=1;                                                  //中断溢出标志
- 509   1      }
- 510          
- 511                          
+ 426                          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   1627    ----
-   CONSTANT SIZE    =     15    ----
+   CODE SIZE        =   1568    ----
+   CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----
-   DATA SIZE        =     31      13
+   DATA SIZE        =     48       5
    IDATA SIZE       =   ----    ----
    BIT SIZE         =      1    ----
 END OF MODULE INFORMATION.
