@@ -1,4 +1,4 @@
-C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 1   
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 23:01:58 PAGE 1   
 
 
 C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
@@ -62,7 +62,7 @@ line level    source
   52                     unsigned long oldS=0;
   53                     unsigned long oldST=0;
   54                     bit      flag =0;
-C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 2   
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 23:01:58 PAGE 2   
 
   55                     unsigned char disbuff[4]        ={ 0,0,0,0,};
   56          
@@ -126,7 +126,7 @@ line level    source
  114   1                _nop_(); 
  115   1                _nop_();
  116   1                _nop_(); 
-C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 3   
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 23:01:58 PAGE 3   
 
  117   1                _nop_(); 
  118   1                _nop_(); 
@@ -190,7 +190,7 @@ line level    source
  176          
  177          unsigned char month, day,hour,minite,sec;
  178          unsigned char day_old,hour_old,minite_old,sec_old;
-C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 4   
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 23:01:58 PAGE 4   
 
  179          unsigned int  months, days,hours,minites,secs;
  180          unsigned char oldhour=0,oldminite=0;
@@ -254,7 +254,7 @@ line level    source
  238          {
  239   1              unsigned char Step=0;
  240   1              unsigned int  Timetick=0;
-C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 5   
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 23:01:58 PAGE 5   
 
  241   1              unsigned int  WTimetick=0;
  242   1              Sys_Init();
@@ -318,7 +318,7 @@ line level    source
  300   4                                      {
  301   5                                              LED = 1;//πÿµ∆
  302   5                                              LEDBeginTime = 0;//«Â≥˝º∆ ±
-C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 6   
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 23:01:58 PAGE 6   
 
  303   5                                      }
  304   4                              }
@@ -329,12 +329,12 @@ line level    source
  309   3                              LED = 1;
  310   3                              LEDBeginTime = 0;
  311   3                      }
- 312   2                      if(day %2 ==0 && hour == 19 && WeiYuFlag == 0 ) //getian ÕÌ…œ7µ„Œπ ≥
+ 312   2                      if(day %2 ==0 && hour == 7 && WeiYuFlag == 0 )  //getian ÕÌ…œ7µ„Œπ ≥
  313   2                      {
  314   3                              Act_WS();
  315   3                              WeiYuFlag = 1;
  316   3                      }
- 317   2                      if(hour != 19)
+ 317   2                      if(hour != 7)
  318   2                      {
  319   3                              WeiYuFlag = 0;
  320   3                      }
@@ -364,8 +364,8 @@ line level    source
  344   2                      DisplayOneChar(5, 1, oldS%1000/100+0x30);
  345   2                      DisplayOneChar(6, 1, oldS%1000%100/10+0x30);
  346   2                      DisplayOneChar(7, 1, oldS%1000%10 %10+0x30);
- 347   2                      if(((day==15 || day==30)&& huanshuiFlag==0 && LED == 0 && alarm == 0) || Manual==1)     //√ø‘¬4»’ 20»’‘⁄¡¡µ∆
-             -«Èøˆœ¬ªªÀÆ
+ 347   2                      if(((day==2 || day==16)&& huanshuiFlag==0 && LED == 0 && alarm == 0) || Manual==1)      //√ø‘¬4»’ 20»’‘⁄¡¡µ∆«
+             -Èøˆœ¬ªªÀÆ
  348   2                      {
  349   3                              if(Step == 0)
  350   3                              {
@@ -382,7 +382,7 @@ line level    source
  361   5                                              K5 = 1;//πÿ±’—≠ª∑ÀÆ±√
  362   5                                              K1 = 0;
  363   5                                              K2 = 0; //≈≈ÀÆ∑ß√≈ø™
-C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 7   
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 23:01:58 PAGE 7   
 
  364   5                                              oldS = S;
  365   5                                              oldS = oldS/3*2;
@@ -428,7 +428,7 @@ line level    source
  405   5                                      }
  406   4                              }
  407   3                      }
- 408   2                      if(day!=15 && day!=30)
+ 408   2                      if(day!=2 && day!=16)
  409   2                      {
  410   3                              
  411   3                              huanshuiFlag = 0;
@@ -446,7 +446,7 @@ line level    source
  423   1              flag=1;                                                  //÷–∂œ“Á≥ˆ±Í÷æ
  424   1      }
  425          
-C51 COMPILER V9.54   MAIN                                                                  12/30/2019 01:19:17 PAGE 8   
+C51 COMPILER V9.54   MAIN                                                                  12/30/2019 23:01:58 PAGE 8   
 
  426                          
 

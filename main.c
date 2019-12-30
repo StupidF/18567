@@ -309,12 +309,12 @@ void main(void)
 			LED = 1;
 			LEDBeginTime = 0;
 		}
-		if(day %2 ==0 && hour == 19 && WeiYuFlag == 0 )	//getian 晚上7点喂食
+		if(day %2 ==0 && hour == 7 && WeiYuFlag == 0 )	//getian 晚上7点喂食
 		{
 			Act_WS();
 			WeiYuFlag = 1;
 		}
-		if(hour != 19)
+		if(hour != 7)
 		{
 			WeiYuFlag = 0;
 		}
@@ -344,7 +344,7 @@ void main(void)
 		DisplayOneChar(5, 1, oldS%1000/100+0x30);
 		DisplayOneChar(6, 1, oldS%1000%100/10+0x30);
 		DisplayOneChar(7, 1, oldS%1000%10 %10+0x30);
-		if(((day==15 || day==30)&& huanshuiFlag==0 && LED == 0 && alarm == 0) || Manual==1)	//每月4日 20日在亮灯情况下换水
+		if(((day==2 || day==16)&& huanshuiFlag==0 && LED == 0 && alarm == 0) || Manual==1)	//每月4日 20日在亮灯情况下换水
 		{
 			if(Step == 0)
 			{
@@ -405,7 +405,7 @@ void main(void)
 				}
 			}
 		}
-		if(day!=15 && day!=30)
+		if(day!=2 && day!=16)
 		{
 			
 			huanshuiFlag = 0;
